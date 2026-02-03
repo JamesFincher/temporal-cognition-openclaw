@@ -1,0 +1,43 @@
+{
+  "name": "@openclaw/temporal-cognition",
+  "version": "1.0.0",
+  "description": "Temporal Cognition Module - AI-subjective time tracking, task estimation, and cross-channel temporal synchronization for OpenClaw",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "openclaw": {
+    "extensions": ["./dist/index.js"],
+    "hooks": ["./hooks/temporal-sync"],
+    "install": {
+      "npmSpec": "@openclaw/temporal-cognition",
+      "localPath": "extensions/temporal-cognition",
+      "defaultChoice": "local"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublish": "npm run build"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2024.1.0"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0",
+    "date-fns": "^3.3.0",
+    "date-fns-tz": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "temporal",
+    "time",
+    "scheduling",
+    "ai"
+  ],
+  "license": "MIT"
+}
