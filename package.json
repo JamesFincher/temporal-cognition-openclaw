@@ -1,55 +1,37 @@
 {
   "name": "temporal-cognition-openclaw",
-  "version": "1.0.0",
-  "description": "Temporal Cognition Module - AI-subjective time tracking, task estimation, and cross-channel temporal synchronization for OpenClaw",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "openclaw": {
-    "extensions": [
-      "./dist/index.js"
-    ],
-    "hooks": [
-      "./hooks/temporal-sync"
-    ],
-    "install": {
-      "npmSpec": "@openclaw/temporal-cognition",
-      "localPath": "extensions/temporal-cognition",
-      "defaultChoice": "local"
-    }
-  },
+  "version": "1.1.0",
+  "description": "Temporal Cognition Module - OpenClaw plugin for AI temporal awareness, task estimation, priority scheduling, and 24/7 cycle management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "hooks",
+    "openclaw.plugin.json"
+  ],
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist",
-    "prepublish": "npm run build"
+    "prepublishOnly": "npm run build",
+    "postinstall": "node scripts/register.js || true"
   },
-  "peerDependencies": {
-    "openclaw": ">=2024.1.0"
-  },
+  "keywords": ["openclaw", "openclaw-plugin", "temporal", "ai", "agent"],
+  "license": "MIT",
   "dependencies": {
     "@sinclair/typebox": "^0.32.0",
     "date-fns": "^3.3.0",
     "date-fns-tz": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
   },
-  "keywords": [
-    "openclaw",
-    "plugin",
-    "temporal",
-    "time",
-    "scheduling",
-    "ai"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/JamesFincher/temporal-cognition-openclaw"
+  "openclaw": {
+    "plugin": true,
+    "slot": "tool",
+    "manifest": "openclaw.plugin.json",
+    "autoRegister": true
   },
-  "bugs": {
-    "url": "https://github.com/JamesFincher/temporal-cognition-openclaw/issues"
-  },
-  "homepage": "https://github.com/JamesFincher/temporal-cognition-openclaw#readme"
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

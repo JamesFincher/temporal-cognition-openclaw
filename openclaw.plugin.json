@@ -1,0 +1,112 @@
+{
+  "$schema": "https://openclaw.dev/schemas/plugin.json",
+  "id": "temporal-cognition",
+  "name": "Temporal Cognition Module",
+  "version": "1.1.0",
+  "description": "AI temporal awareness, task estimation, priority scheduling, and 24/7 cycle management",
+  "slot": "tool",
+  "main": "dist/index.js",
+  "autoRegister": true,
+  "defaultEnabled": true,
+  "hooks": [
+    {
+      "event": "message_received",
+      "handler": "dist/index.js",
+      "method": "onMessageReceived"
+    },
+    {
+      "event": "before_agent_start",
+      "handler": "dist/index.js",
+      "method": "onBeforeAgentStart"
+    },
+    {
+      "event": "agent_end",
+      "handler": "dist/index.js",
+      "method": "onAgentEnd"
+    },
+    {
+      "event": "session_start",
+      "handler": "dist/index.js",
+      "method": "onSessionStart"
+    },
+    {
+      "event": "session_end",
+      "handler": "dist/index.js",
+      "method": "onSessionEnd"
+    }
+  ],
+  "gateway": {
+    "methods": ["temporal.status", "temporal.getContext"]
+  },
+  "cli": {
+    "commands": ["temporal"]
+  },
+  "defaultConfig": {
+    "enabled": true,
+    "timePerception": {
+      "enabled": true,
+      "subjectiveTimeRatio": 1.0,
+      "timezone": "auto",
+      "trackProcessingTime": true
+    },
+    "taskEstimator": {
+      "enabled": true,
+      "learningRate": 0.1,
+      "confidenceDecayDays": 30,
+      "bufferPercentage": 0.2
+    },
+    "temporalTranslator": {
+      "enabled": true,
+      "includeBuffer": true,
+      "humanFriendlyUnits": true
+    },
+    "priorityScheduler": {
+      "enabled": true,
+      "weights": {
+        "urgency": 0.4,
+        "importance": 0.3,
+        "effort": 0.2,
+        "deadline": 0.1
+      }
+    },
+    "cycleManager": {
+      "enabled": true,
+      "phases": {
+        "active": { "start": "08:00", "end": "18:00" },
+        "passive": { "start": "18:00", "end": "22:00" },
+        "autonomous": { "start": "22:00", "end": "02:00" },
+        "consolidation": { "start": "02:00", "end": "04:00" },
+        "maintenance": { "start": "04:00", "end": "08:00" }
+      },
+      "adaptToUserActivity": true
+    },
+    "crossChannelSync": {
+      "enabled": true,
+      "syncIntervalMs": 5000,
+      "channels": ["discord", "telegram"]
+    },
+    "temporalMemory": {
+      "enabled": true,
+      "decayHalfLifeDays": 7,
+      "relevanceBoostRecent": 1.5
+    },
+    "storage": {
+      "path": "~/.openclaw/temporal-cognition",
+      "autoSaveIntervalMs": 30000
+    }
+  },
+  "tools": [
+    "temporal_now",
+    "temporal_estimate",
+    "temporal_start_task",
+    "temporal_complete_task",
+    "temporal_schedule_task",
+    "temporal_get_next_task",
+    "temporal_list_tasks",
+    "temporal_get_phase",
+    "temporal_translate",
+    "temporal_sync_status",
+    "temporal_memory_search",
+    "temporal_memory_add"
+  ]
+}
