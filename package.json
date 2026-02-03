@@ -1,12 +1,16 @@
 {
-  "name": "@openclaw/temporal-cognition",
+  "name": "temporal-cognition-openclaw",
   "version": "1.0.0",
   "description": "Temporal Cognition Module - AI-subjective time tracking, task estimation, and cross-channel temporal synchronization for OpenClaw",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "openclaw": {
-    "extensions": ["./dist/index.js"],
-    "hooks": ["./hooks/temporal-sync"],
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "hooks": [
+      "./hooks/temporal-sync"
+    ],
     "install": {
       "npmSpec": "@openclaw/temporal-cognition",
       "localPath": "extensions/temporal-cognition",
@@ -39,5 +43,13 @@
     "scheduling",
     "ai"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JamesFincher/temporal-cognition-openclaw"
+  },
+  "bugs": {
+    "url": "https://github.com/JamesFincher/temporal-cognition-openclaw/issues"
+  },
+  "homepage": "https://github.com/JamesFincher/temporal-cognition-openclaw#readme"
 }
