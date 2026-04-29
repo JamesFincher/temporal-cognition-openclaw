@@ -47,6 +47,51 @@ export type TaskComplexity =
   | "complex" 
   | "highly-complex";
 
+export type ActorProfile =
+  | "human"
+  | "ai-assisted-human"
+  | "ai-agent";
+
+export type SoftwareTaskType =
+  | "implementation"
+  | "testing"
+  | "debugging"
+  | "documentation"
+  | "review";
+
+export type VerificationLevel =
+  | "none"
+  | "light"
+  | "normal"
+  | "thorough";
+
+export type CodebaseFamiliarity =
+  | "familiar"
+  | "mixed"
+  | "unfamiliar";
+
+export type BaselineSource =
+  | "default-category"
+  | "calibrated-software"
+  | "learned-history";
+
+export interface SoftwareTaskDetail {
+  actorProfile?: ActorProfile;
+  softwareTaskType?: SoftwareTaskType;
+  expectedFiles?: number;
+  expectedLinesChanged?: number;
+  verificationLevel?: VerificationLevel;
+  familiarity?: CodebaseFamiliarity;
+}
+
+export interface DurationBaselineMetadata {
+  actorProfile?: ActorProfile;
+  baselineSource: BaselineSource;
+  calibrationMethod: string;
+  softwareTaskType?: SoftwareTaskType;
+  adjustmentFactors?: Record<string, number>;
+}
+
 export interface DurationEstimate {
   minimumMs: number;
   expectedMs: number;
@@ -60,6 +105,7 @@ export interface DurationEstimate {
     expected: string;
     maximum: string;
   };
+  baselineMetadata?: DurationBaselineMetadata;
 }
 
 export interface TaskHistoryEntry {
