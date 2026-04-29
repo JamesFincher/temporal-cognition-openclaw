@@ -19,8 +19,8 @@
       "technicalNotes": "Modify src/types.ts:31 for estimation types and src/constants.ts:20/src/constants.ts:29 for centralized constants. Follow the existing Record<TaskComplexity, number> pattern from COMPLEXITY_MULTIPLIERS and do not remove BASE_DURATION_MS because TaskTimeEstimator.getBaseline currently depends on it at src/engines/task-estimator.ts:72.",
       "dependsOn": [],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: src/types.ts, src/constants.ts, tests/constants.test.ts."
     },
     {
       "id": "US-002",
@@ -40,8 +40,8 @@
         "US-001"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 2. Files: src/engines/task-estimator.ts."
     },
     {
       "id": "US-003",
@@ -61,8 +61,8 @@
         "US-002"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 3. Files: src/tools/temporal-tools.ts."
     },
     {
       "id": "US-004",
@@ -83,8 +83,8 @@
         "US-003"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 4. Files: package.json, tests/task-estimator.test.ts."
     },
     {
       "id": "US-005",
@@ -104,8 +104,8 @@
         "US-004"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in iteration 5. Files: README.md."
     }
   ]
 }
