@@ -20,6 +20,7 @@ export function MonthSelector({
   const getOrCreateMonth = useMutation(api.financial.getOrCreateMonth);
   const copyPreviousMonth = useMutation(api.financial.copyPreviousMonth);
   const [isWorking, setIsWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const label = useMemo(() => {
     const [year, month] = monthKey.split("-").map(Number);
     return new Intl.DateTimeFormat("en-US", {
@@ -31,22 +32,43 @@ export function MonthSelector({
 
   async function createMonth(nextMonthKey: string) {
     setIsWorking(true);
-    await getOrCreateMonth({
-      monthKey: nextMonthKey,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-    onMonthChange(nextMonthKey);
-    setIsWorking(false);
+    setError(null);
+    try {
+      await getOrCreateMonth({
+        monthKey: nextMonthKey,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      onMonthChange(nextMonthKey);
+    } catch (caught) {
+      console.error("Failed to create or load month", {
+        nextMonthKey,
+        error: caught,
+      });
+      setError("Could not load that month. Try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   async function copyTemplate() {
     setIsWorking(true);
-    await copyPreviousMonth({
-      fromMonthKey: shiftMonth(monthKey, -1),
-      toMonthKey: monthKey,
-      includeActuals: false,
-    });
-    setIsWorking(false);
+    setError(null);
+    try {
+      await copyPreviousMonth({
+        fromMonthKey: shiftMonth(monthKey, -1),
+        toMonthKey: monthKey,
+        includeActuals: false,
+      });
+    } catch (caught) {
+      console.error("Failed to copy previous month template", {
+        fromMonthKey: shiftMonth(monthKey, -1),
+        toMonthKey: monthKey,
+        error: caught,
+      });
+      setError("Could not copy the previous month. Try again.");
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   return (
@@ -81,6 +103,11 @@ export function MonthSelector({
       <button disabled={isWorking} onClick={copyTemplate} type="button">
         Copy previous template
       </button>
+      {error ? (
+        <small role="alert" style={{ color: "#b91c1c" }}>
+          {error}
+        </small>
+      ) : null}
     </div>
   );
 }

@@ -29,44 +29,12 @@ export const getOrCreateMonth = mutation({
     monthKey: v.string(),
     timezone: v.optional(v.string()),
   },
-  handler: async (
-    ctx: ConvexCtx,
-    args: { monthKey: string; timezone?: string },
-  ) => {
-    const ownerId = await requireOwnerId(ctx);
-    const existing = await ctx.db
-      .query("months")
-      .withIndex("by_owner_month", (q: any) =>
-        q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
-      )
-      .unique();
-    if (existing) return existing;
-
-    const now = Date.now();
-    const monthId = await ctx.db.insert("months", {
-      ownerId,
-      monthKey: args.monthKey,
-      displayName: displayNameForMonth(args.monthKey),
-      timezone: args.timezone ?? "America/Los_Angeles",
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    });
-    return await ctx.db.get(monthId);
-  },
+  handler: getOrCreateMonthHandler,
 });
 
 export const listMonthItems = query({
   args: { monthKey: v.string() },
-  handler: async (ctx: ConvexCtx, args: { monthKey: string }) => {
-    const ownerId = await requireOwnerId(ctx);
-    return await ctx.db
-      .query("financialItems")
-      .withIndex("by_owner_month", (q: any) =>
-        q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
-      )
-      .collect();
-  },
+  handler: listMonthItemsHandler,
 });
 
 export const upsertFinancialItem = mutation({
@@ -83,88 +51,12 @@ export const upsertFinancialItem = mutation({
     verified: v.optional(v.boolean()),
     notes: v.optional(v.string()),
   },
-  handler: async (
-    ctx: ConvexCtx,
-    args: {
-      itemId?: string;
-      monthKey: string;
-      category:
-        | "income"
-        | "fixed_bill"
-        | "variable_expense"
-        | "credit_card"
-        | "loan"
-        | "envelope";
-      label: string;
-      amountCents: number;
-      paidCents?: number;
-      balanceCents?: number;
-      creditLimitCents?: number;
-      dueDay?: number;
-      verified?: boolean;
-      notes?: string;
-    },
-  ) => {
-    const ownerId = await requireOwnerId(ctx);
-    const month = await ctx.db
-      .query("months")
-      .withIndex("by_owner_month", (q: any) =>
-        q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
-      )
-      .unique();
-    if (!month) throw new Error("Month must exist before adding items");
-
-    const now = Date.now();
-    const values = {
-      ownerId,
-      monthId: month._id,
-      monthKey: args.monthKey,
-      category: args.category,
-      label: args.label,
-      amountCents: args.amountCents,
-      paidCents: args.paidCents,
-      balanceCents: args.balanceCents,
-      creditLimitCents: args.creditLimitCents,
-      dueDay: args.dueDay,
-      verified: args.verified ?? false,
-      notes: args.notes,
-      updatedAt: now,
-    };
-
-    if (args.itemId) {
-      const existing = await ctx.db.get(args.itemId);
-      if (!existing || existing.ownerId !== ownerId)
-        throw new Error("Item not found");
-      await ctx.db.patch(args.itemId, values);
-      return await ctx.db.get(args.itemId);
-    }
-
-    const itemId = await ctx.db.insert("financialItems", {
-      ...values,
-      createdAt: now,
-    });
-    return await ctx.db.get(itemId);
-  },
+  handler: upsertFinancialItemHandler,
 });
 
 export const deleteFinancialItem = mutation({
   args: { itemId: v.id("financialItems") },
-  handler: async (ctx: ConvexCtx, args: { itemId: string }) => {
-    const ownerId = await requireOwnerId(ctx);
-    const existing = await ctx.db.get(args.itemId);
-    if (!existing || existing.ownerId !== ownerId)
-      throw new Error("Item not found");
-    await ctx.db.delete(args.itemId);
-    await ctx.db.insert("auditEvents", {
-      ownerId,
-      monthKey: existing.monthKey,
-      eventType: "delete",
-      entityType: "financialItem",
-      entityId: args.itemId,
-      createdAt: Date.now(),
-    });
-    return { deleted: true };
-  },
+  handler: deleteFinancialItemHandler,
 });
 
 export const copyPreviousMonth = mutation({
@@ -173,60 +65,198 @@ export const copyPreviousMonth = mutation({
     toMonthKey: v.string(),
     includeActuals: v.optional(v.boolean()),
   },
-  handler: async (
-    ctx: ConvexCtx,
-    args: {
-      fromMonthKey: string;
-      toMonthKey: string;
-      includeActuals?: boolean;
-    },
-  ) => {
-    const ownerId = await requireOwnerId(ctx);
-    const now = Date.now();
-    const existingTarget = await ctx.db
-      .query("months")
-      .withIndex("by_owner_month", (q: any) =>
-        q.eq("ownerId", ownerId).eq("monthKey", args.toMonthKey),
-      )
-      .unique();
-    const targetMonthId =
-      existingTarget?._id ??
-      (await ctx.db.insert("months", {
-        ownerId,
-        monthKey: args.toMonthKey,
-        displayName: displayNameForMonth(args.toMonthKey),
-        timezone: existingTarget?.timezone ?? "America/Los_Angeles",
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      }));
-
-    const sourceItems = await ctx.db
-      .query("financialItems")
-      .withIndex("by_owner_month", (q: any) =>
-        q.eq("ownerId", ownerId).eq("monthKey", args.fromMonthKey),
-      )
-      .collect();
-
-    for (const item of sourceItems) {
-      await ctx.db.insert("financialItems", {
-        ownerId,
-        monthId: targetMonthId,
-        monthKey: args.toMonthKey,
-        category: item.category,
-        label: item.label,
-        amountCents: item.amountCents,
-        paidCents: args.includeActuals ? item.paidCents : undefined,
-        balanceCents: item.balanceCents,
-        creditLimitCents: item.creditLimitCents,
-        dueDay: item.dueDay,
-        verified: false,
-        notes: item.notes,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
-    return { copied: sourceItems.length };
-  },
+  handler: copyPreviousMonthHandler,
 });
+
+export async function getOrCreateMonthHandler(
+  ctx: ConvexCtx,
+  args: { monthKey: string; timezone?: string },
+) {
+  const ownerId = await requireOwnerId(ctx);
+  const existing = await ctx.db
+    .query("months")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
+    )
+    .unique();
+  if (existing) return existing;
+
+  const now = Date.now();
+  const monthId = await ctx.db.insert("months", {
+    ownerId,
+    monthKey: args.monthKey,
+    displayName: displayNameForMonth(args.monthKey),
+    timezone: args.timezone ?? "America/Los_Angeles",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return await ctx.db.get(monthId);
+}
+
+export async function listMonthItemsHandler(
+  ctx: ConvexCtx,
+  args: { monthKey: string },
+) {
+  const ownerId = await requireOwnerId(ctx);
+  return await ctx.db
+    .query("financialItems")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
+    )
+    .collect();
+}
+
+export async function upsertFinancialItemHandler(
+  ctx: ConvexCtx,
+  args: {
+    itemId?: string;
+    monthKey: string;
+    category:
+      | "income"
+      | "fixed_bill"
+      | "variable_expense"
+      | "credit_card"
+      | "loan"
+      | "envelope";
+    label: string;
+    amountCents: number;
+    paidCents?: number;
+    balanceCents?: number;
+    creditLimitCents?: number;
+    dueDay?: number;
+    verified?: boolean;
+    notes?: string;
+  },
+) {
+  const ownerId = await requireOwnerId(ctx);
+  const month = await ctx.db
+    .query("months")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.monthKey),
+    )
+    .unique();
+  if (!month) throw new Error("Month must exist before adding items");
+
+  const now = Date.now();
+  const values = {
+    ownerId,
+    monthId: month._id,
+    monthKey: args.monthKey,
+    category: args.category,
+    label: args.label,
+    amountCents: args.amountCents,
+    paidCents: args.paidCents,
+    balanceCents: args.balanceCents,
+    creditLimitCents: args.creditLimitCents,
+    dueDay: args.dueDay,
+    verified: args.verified ?? false,
+    notes: args.notes,
+    updatedAt: now,
+  };
+
+  if (args.itemId) {
+    const existing = await ctx.db.get(args.itemId);
+    if (!existing || existing.ownerId !== ownerId) {
+      throw new Error("Item not found");
+    }
+    await ctx.db.patch(args.itemId, values);
+    return await ctx.db.get(args.itemId);
+  }
+
+  const itemId = await ctx.db.insert("financialItems", {
+    ...values,
+    createdAt: now,
+  });
+  return await ctx.db.get(itemId);
+}
+
+export async function deleteFinancialItemHandler(
+  ctx: ConvexCtx,
+  args: { itemId: string },
+) {
+  const ownerId = await requireOwnerId(ctx);
+  const existing = await ctx.db.get(args.itemId);
+  if (!existing || existing.ownerId !== ownerId) {
+    throw new Error("Item not found");
+  }
+  await ctx.db.delete(args.itemId);
+  await ctx.db.insert("auditEvents", {
+    ownerId,
+    monthKey: existing.monthKey,
+    eventType: "delete",
+    entityType: "financialItem",
+    entityId: args.itemId,
+    createdAt: Date.now(),
+  });
+  return { deleted: true };
+}
+
+export async function copyPreviousMonthHandler(
+  ctx: ConvexCtx,
+  args: {
+    fromMonthKey: string;
+    toMonthKey: string;
+    includeActuals?: boolean;
+  },
+) {
+  const ownerId = await requireOwnerId(ctx);
+  const now = Date.now();
+  const existingTarget = await ctx.db
+    .query("months")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.toMonthKey),
+    )
+    .unique();
+  const targetMonthId =
+    existingTarget?._id ??
+    (await ctx.db.insert("months", {
+      ownerId,
+      monthKey: args.toMonthKey,
+      displayName: displayNameForMonth(args.toMonthKey),
+      timezone: existingTarget?.timezone ?? "America/Los_Angeles",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+  const targetItems = await ctx.db
+    .query("financialItems")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.toMonthKey),
+    )
+    .collect();
+  if (targetItems.length > 0) {
+    throw new Error(
+      "Target month already has items. Clear it or choose replace.",
+    );
+  }
+
+  const sourceItems = await ctx.db
+    .query("financialItems")
+    .withIndex("by_owner_month", (q: any) =>
+      q.eq("ownerId", ownerId).eq("monthKey", args.fromMonthKey),
+    )
+    .collect();
+
+  for (const item of sourceItems) {
+    await ctx.db.insert("financialItems", {
+      ownerId,
+      monthId: targetMonthId,
+      monthKey: args.toMonthKey,
+      category: item.category,
+      label: item.label,
+      amountCents: item.amountCents,
+      paidCents: args.includeActuals ? item.paidCents : undefined,
+      balanceCents: item.balanceCents,
+      creditLimitCents: item.creditLimitCents,
+      dueDay: item.dueDay,
+      verified: false,
+      notes: item.notes,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  return { copied: sourceItems.length };
+}
