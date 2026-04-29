@@ -87,10 +87,10 @@ chmod +x install.sh
 | Tool | Description |
 |------|-------------|
 | `temporal_now` | Get current wall-clock + AI-subjective time + phase |
-| `temporal_estimate` | Estimate task duration by category/complexity |
+| `temporal_estimate` | Estimate task duration by category/complexity, with optional actor-aware software task details |
 | `temporal_start_task` | Begin tracking a task for learning |
 | `temporal_complete_task` | Complete task and record actual duration |
-| `temporal_schedule_task` | Add task with deadline and priority |
+| `temporal_schedule_task` | Add task with deadline, priority, and optional actor-aware estimation details |
 | `temporal_get_next_task` | Get highest-priority pending task |
 | `temporal_list_tasks` | List scheduled tasks by priority |
 | `temporal_get_phase` | Get current 24/7 cycle phase info |
@@ -137,6 +137,17 @@ openclaw temporal tasks
   }
 }
 ```
+
+No extra configuration is required for evidence-based software estimates. Callers can pass optional estimate fields on `temporal_estimate` and `temporal_schedule_task`:
+
+| Field | Values |
+|-------|--------|
+| `actorProfile` | `human`, `ai-assisted-human`, `ai-agent` |
+| `softwareTaskType` | `implementation`, `testing`, `debugging`, `documentation`, `review` |
+| `verificationLevel` | `none`, `light`, `normal`, `thorough` |
+| `familiarity` | `familiar`, `mixed`, `unfamiliar` |
+| `expectedFiles` | Estimated file count |
+| `expectedLinesChanged` | Estimated lines added, changed, or removed |
 
 ### Cycle Manager
 ```json
@@ -197,6 +208,21 @@ Agent: [Uses temporal_schedule_task]
        - Recommendation: Comfortable timeline. Can be scheduled flexibly.
 ```
 
+### Actor-Aware Software Estimate
+```
+User: Estimate a simple TypeScript helper change for an AI agent. It should touch 2 files,
+      change about 70 lines, and needs normal verification.
+
+Agent: [Uses temporal_estimate with category="coding", complexity="simple",
+        actorProfile="ai-agent", softwareTaskType="implementation",
+        expectedFiles=2, expectedLinesChanged=70, verificationLevel="normal",
+        familiarity="mixed"]
+       Expected duration: about 17 minutes.
+       Baseline: calibrated software estimate for AI-agent implementation work.
+       Note: this includes comprehension, tool execution, and verification time;
+       it is not a raw line-generation speed estimate.
+```
+
 ### Task Learning Flow
 ```
 Agent: [Uses temporal_start_task] Starting to track this coding task...
@@ -214,11 +240,15 @@ The plugin tracks two types of time:
 - **AI-subjective time**: Processing ticks and cycles
 
 ### Task Estimation
-Uses Bayesian learning to improve estimates over time:
-1. Start with baseline estimates per category/complexity
-2. Track actual durations when tasks complete
-3. Update estimates using weighted averaging
-4. Confidence increases with more data points
+Uses evidence-calibrated baselines and Bayesian learning to improve estimates over time:
+1. Start with legacy category/complexity baselines for general work
+2. For coding estimates with `softwareTaskType`, use calibrated software baselines by task type, actor profile, and complexity
+3. Adjust software estimates for expected files, expected lines changed, verification level, and codebase familiarity
+4. Track actual durations when tasks complete
+5. Let high-confidence learned history override the default or calibrated baseline for matching category/complexity work
+6. Confidence increases with more data points
+
+Software calibration is based on public developer-productivity research, including the GitHub/Microsoft Copilot controlled task study, GitHub's 2024 Copilot code-quality randomized trial, DORA's AI-assisted SDLC analysis, and GitHub/CodeQL guidance that commit intervals are not active coding time. The built-in AI-agent baselines intentionally include verification overhead because generated code still needs inspection, testing, and debugging before it is useful.
 
 ### Priority Calculation
 Priority score (0-100) combines:
