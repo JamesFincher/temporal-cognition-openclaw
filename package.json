@@ -11,6 +11,11 @@
   ],
   "scripts": {
     "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "tsc --noEmit",
+    "format:check": "tsc --noEmit",
+    "format": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "postinstall": "node scripts/register.js || true"
   },
