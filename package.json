@@ -11,9 +11,16 @@
   ],
   "scripts": {
     "build": "tsc",
+    "financial:dev": "npm --workspace apps/financial-suite run dev",
+    "financial:build": "npm --workspace apps/financial-suite run build",
+    "financial:type-check": "npm --workspace apps/financial-suite run type-check",
+    "financial:test": "npm --workspace apps/financial-suite test",
     "prepublishOnly": "npm run build",
     "postinstall": "node scripts/register.js || true"
   },
+  "workspaces": [
+    "apps/*"
+  ],
   "keywords": ["openclaw", "openclaw-plugin", "temporal", "ai", "agent"],
   "license": "MIT",
   "dependencies": {

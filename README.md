@@ -2,6 +2,31 @@
 
 A comprehensive temporal awareness plugin that gives OpenClaw agents sophisticated time perception, task estimation, priority scheduling, 24/7 cycle management, and cross-channel synchronization.
 
+## Financial Suite App
+
+This repository also contains `apps/financial-suite`, a Next.js App Router workspace for an authenticated financial tracker backed by Clerk and Convex.
+
+### Local Setup
+
+```bash
+npm install --legacy-peer-deps
+npm run financial:type-check
+npm run financial:test
+npm run financial:dev
+```
+
+Required environment variables for the app:
+
+```bash
+NEXT_PUBLIC_CONVEX_URL=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_JWT_ISSUER_DOMAIN=
+OPENAI_API_KEY=
+```
+
+Convex and Clerk should use separate development and production projects. Do not import account numbers, login credentials, routing numbers, or real financial exports into source control; the legacy importer skips sensitive-looking flat fields by default.
+
 ## Features
 
 - **Time Perception Engine** - Wall-clock + AI-subjective time tracking
