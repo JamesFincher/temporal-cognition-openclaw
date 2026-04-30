@@ -16,10 +16,23 @@
     "lint": "tsc --noEmit",
     "format:check": "tsc --noEmit",
     "format": "tsc --noEmit",
+    "financial:dev": "npm --workspace apps/financial-suite run dev",
+    "financial:build": "npm --workspace apps/financial-suite run build",
+    "financial:type-check": "npm --workspace apps/financial-suite run type-check",
+    "financial:test": "npm --workspace apps/financial-suite test",
     "prepublishOnly": "npm run build",
     "postinstall": "node scripts/register.js || true"
   },
-  "keywords": ["openclaw", "openclaw-plugin", "temporal", "ai", "agent"],
+  "workspaces": [
+    "apps/*"
+  ],
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "temporal",
+    "ai",
+    "agent"
+  ],
   "license": "MIT",
   "dependencies": {
     "@sinclair/typebox": "^0.32.0",
@@ -27,8 +40,9 @@
     "date-fns-tz": "^2.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "jsdom": "^24.1.3",
+    "typescript": "^5.3.0"
   },
   "openclaw": {
     "plugin": true,
