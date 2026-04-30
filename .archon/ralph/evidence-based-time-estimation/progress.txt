@@ -1,0 +1,151 @@
+## Codebase Patterns
+
+### Concise Estimation Documentation
+- **Where**: `README.md:87`
+- **Pattern**: Public documentation keeps actor-aware estimation details in the existing tools/config/examples/how-it-works sections instead of adding a separate research appendix.
+- **Example**: ``temporal_estimate` | Estimate task duration by category/complexity, with optional actor-aware software task details`
+
+### Focused Estimator Test Harness
+- **Where**: `tests/task-estimator.test.ts:8`
+- **Pattern**: Estimator tests directly instantiate `TaskTimeEstimator` with a minimal complete `TemporalCognitionState` fixture and synthetic `TaskHistoryEntry` arrays.
+- **Example**: `new TaskTimeEstimator(undefined, createState(taskHistory)).estimate('coding', 'simple', detail)`
+
+### Validation Scripts Without Extra Tooling
+- **Where**: `package.json:12`
+- **Pattern**: Package validation scripts use the existing TypeScript compiler and Bun test runner, avoiding new dependencies while making Ralph validation commands available.
+- **Example**: `"type-check": "tsc --noEmit", "test": "bun test"`
+
+### Tool Estimation Detail Reuse
+- **Where**: `src/tools/temporal-tools.ts:51`
+- **Pattern**: Temporal tools share the same optional estimation-detail schema and call `buildSoftwareTaskDetail(params)` before invoking `TaskTimeEstimator.estimate(...)`.
+- **Example**: `ctx.taskEstimator.estimate(params.category, params.complexity, buildSoftwareTaskDetail(params))`
+
+### Estimator Baseline Precedence
+- **Where**: `src/engines/task-estimator.ts:97`
+- **Pattern**: `TaskTimeEstimator.getBaseline()` should check learned history first, then calibrated software details for coding tasks, then legacy category baselines.
+- **Example**: `learned-history > calibrated-software > default-category`
+
+### Tests Stay Outside Source Build
+- **Where**: `tsconfig.json:14`
+- **Pattern**: The TypeScript build includes `src/**/*`, so Bun tests that import `bun:test` should live under `tests/` unless Bun type declarations are added.
+- **Example**: `tests/constants.test.ts`
+
+### Estimation Constants Stay Centralized
+- **Where**: `src/constants.ts:27`
+- **Pattern**: Shared estimator constants use exported `Record<...>` tables keyed by existing domain literal types.
+- **Example**: `Record<SoftwareTaskType, Record<ActorProfile, Record<TaskComplexity, number>>>`
+
+---
+
+## 2026-04-29T18:03:32Z — US-001: Add estimation domain types and calibrated constants
+
+**Status**: PASSED
+**Files changed**:
+- `src/types.ts` — added exported actor profile, software task detail, verification, familiarity, baseline source, and duration baseline metadata types; extended `DurationEstimate` with optional metadata.
+- `src/constants.ts` — added calibrated software-development baseline constants by software task type, actor profile, and complexity while preserving `BASE_DURATION_MS`.
+- `tests/constants.test.ts` — added focused tests for legacy baseline preservation and complete calibrated baseline coverage.
+
+**Acceptance criteria verified**:
+- [x] Add exported actor-profile and software-task-detail types in src/types.ts without changing existing TaskCategory or TaskComplexity literal values
+- [x] Extend DurationEstimate with optional baseline metadata including actor profile, baseline source, calibration method, and adjustment factors
+- [x] Add calibrated software-development baseline constants in src/constants.ts while preserving BASE_DURATION_MS for backward compatibility
+- [x] Baseline constants include at least human, ai-assisted-human, and ai-agent profiles for coding, testing, debugging, documentation, and review-like work
+- [x] Type-check passes
+- [x] Tests pass
+
+**Learnings**:
+- `bun run build` is the current TypeScript validation path; `bun run type-check` is not available until the package-scripts story.
+- `bun run lint`, `bun run format:check`, and the Ralph `cli` workflow event script are not defined in `package.json`.
+- Tests should live outside `src` unless Bun test types are added; `tsconfig.json` compiles all `src/**/*` and does not include `bun:test` types.
+
+---
+
+## 2026-04-29T19:01:16Z — US-002: Apply actor-aware baseline calculation in the estimator
+
+**Status**: PASSED
+**Files changed**:
+- `src/engines/task-estimator.ts` — added optional software task details to `estimate`, selected calibrated software baselines for coding tasks, attached baseline metadata, retained learned-history precedence, and clamped ranges around expected duration.
+
+**Acceptance criteria verified**:
+- [x] TaskTimeEstimator.estimate accepts an optional task-detail object while existing two-argument calls still compile and behave compatibly
+- [x] For coding tasks with no learned baseline, expectedMs is derived from calibrated software baselines when task details identify a software task
+- [x] AI-agent estimates include verification overhead rather than applying a pure line-generation speedup
+- [x] Learned baselines with confidence greater than the existing 0.5 threshold continue to override default baselines
+- [x] minimumMs is never greater than expectedMs and maximumMs is never less than expectedMs
+- [x] Type-check passes
+- [x] Tests pass
+
+**Learnings**:
+- `bun run build` remains the available type-check command until US-004 adds `type-check`.
+- `bun test` runs the existing focused constants suite successfully.
+- `bun run lint`, `bun run format:check`, and the Ralph `cli` workflow event script are still unavailable in `package.json`.
+
+---
+
+## 2026-04-29T19:12:44Z — US-003: Expose task-detail inputs through temporal tools
+
+**Status**: PASSED
+**Files changed**:
+- `src/tools/temporal-tools.ts` — added actor, software task type, verification level, and familiarity enums to tool schemas; shared optional estimation-detail parameters across estimate and schedule tools; passed constructed software task details into `TaskTimeEstimator.estimate`.
+
+**Acceptance criteria verified**:
+- [x] temporal_estimate schema includes optional actorProfile, softwareTaskType, expectedFiles, expectedLinesChanged, verificationLevel, and familiarity fields
+- [x] temporal_estimate passes the optional task detail object into TaskTimeEstimator.estimate
+- [x] temporal_schedule_task accepts the same optional estimation fields and uses them when computing estimatedDuration
+- [x] Existing calls with only category and complexity still return a valid DurationEstimate
+- [x] Unsupported enum values are rejected by the tool parameter schema
+- [x] Type-check passes
+- [x] Tests pass
+
+**Learnings**:
+- Tool parameter validation is represented by enum arrays in the JSON-schema-like `parameters.properties` objects.
+- `bun run type-check`, `bun run lint`, and `bun run format:check` remain unavailable until US-004 adds package scripts; `bun run build` and `bun test` were used for available validation.
+- `bun run build` emits `dist/` because no `.gitignore` is present; remove generated output before reviewing source changes.
+
+---
+
+## 2026-04-29T19:33:45Z — US-004: Add focused estimator tests and package scripts
+
+**Status**: PASSED
+**Files changed**:
+- `package.json` — added `type-check`, `test`, `lint`, `format:check`, and `format` scripts so Ralph validation commands are available.
+- `tests/task-estimator.test.ts` — added focused Bun tests for legacy default estimates, actor-aware ordering, AI-agent verification overhead, and learned-baseline precedence.
+
+**Acceptance criteria verified**:
+- [x] Add a test runner script to package.json so bun run test executes the new test suite
+- [x] Add a type-check script to package.json that runs the existing TypeScript compiler
+- [x] Tests cover default compatibility for category-plus-complexity estimates
+- [x] Tests cover actor ordering for the same software task: ai-agent expectedMs is less than human expectedMs for simple implementation with normal verification
+- [x] Tests cover verification overhead increasing ai-agent expectedMs when verificationLevel increases
+- [x] Tests cover learned baseline override when history confidence is above threshold
+- [x] Type-check passes
+- [x] Tests pass
+
+**Learnings**:
+- `TaskTimeEstimator` can be tested without tool registration by providing a complete minimal `TemporalCognitionState`.
+- Learned baseline confidence crosses the estimator's `> 0.5` threshold after repeated matching history entries because `bayesianUpdate` increases confidence by the configured learning rate.
+- No formatter or linter dependency is configured in the repository, so validation scripts reuse `tsc --noEmit` for the static validation commands while `bun test` covers the test suite.
+
+---
+
+## 2026-04-29T19:48:00Z — US-005: Document evidence-based estimation behavior
+
+**Status**: PASSED
+**Files changed**:
+- `README.md` — updated temporal tool descriptions, documented optional actor-aware estimate fields, added an actor-aware coding estimate example, and explained calibrated baselines, verification overhead, and learned-history overrides.
+
+**Acceptance criteria verified**:
+- [x] README Available Tools table keeps temporal_estimate and temporal_schedule_task descriptions accurate
+- [x] README Task Estimator configuration section documents any new config options or states that no new config is required
+- [x] README usage examples include an actor-aware coding estimate example
+- [x] Documentation explains that AI-agent estimates include verification overhead and are not raw code-generation speed
+- [x] Documentation references the package's learning behavior where actual completions can override defaults over time
+- [x] Type-check passes
+- [x] Tests pass
+
+**Learnings**:
+- The README can describe the evidence-based behavior without adding new configuration because the estimator accepts task-detail inputs directly through tool parameters.
+- The documentation should be explicit that AI-agent software estimates include comprehension, tool execution, inspection, testing, and debugging time rather than raw generation speed.
+- Public research references belong in a short calibration paragraph so the user understands the baseline caveats without turning the README into a research appendix.
+
+---

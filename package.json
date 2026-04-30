@@ -11,6 +11,11 @@
   ],
   "scripts": {
     "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "bun test tests/*.test.ts",
+    "lint": "tsc --noEmit",
+    "format:check": "tsc --noEmit",
+    "format": "tsc --noEmit",
     "financial:dev": "npm --workspace apps/financial-suite run dev",
     "financial:build": "npm --workspace apps/financial-suite run build",
     "financial:type-check": "npm --workspace apps/financial-suite run type-check",

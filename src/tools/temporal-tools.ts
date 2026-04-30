@@ -9,7 +9,17 @@ import { TemporalPriorityScheduler } from '../engines/priority-scheduler';
 import { CycleManager } from '../managers/cycle-manager';
 import { CrossChannelSync } from '../managers/cross-channel-sync';
 import { TemporalMemoryIntegration } from '../managers/temporal-memory';
-import { TemporalCognitionState, PluginConfig, TaskCategory, TaskComplexity } from '../types';
+import {
+  ActorProfile,
+  CodebaseFamiliarity,
+  PluginConfig,
+  SoftwareTaskDetail,
+  SoftwareTaskType,
+  TaskCategory,
+  TaskComplexity,
+  TemporalCognitionState,
+  VerificationLevel,
+} from '../types';
 import { parseRelativeTime } from '../utils/time-math';
 
 interface Tool {
@@ -33,6 +43,61 @@ interface ToolContext {
 
 const TASK_CATEGORIES: TaskCategory[] = ['research', 'coding', 'writing', 'analysis', 'communication', 'scheduling', 'file-operations', 'web-browsing', 'other'];
 const TASK_COMPLEXITIES: TaskComplexity[] = ['trivial', 'simple', 'moderate', 'complex', 'highly-complex'];
+const ACTOR_PROFILES: ActorProfile[] = ['human', 'ai-assisted-human', 'ai-agent'];
+const SOFTWARE_TASK_TYPES: SoftwareTaskType[] = ['implementation', 'testing', 'debugging', 'documentation', 'review'];
+const VERIFICATION_LEVELS: VerificationLevel[] = ['none', 'light', 'normal', 'thorough'];
+const CODEBASE_FAMILIARITIES: CodebaseFamiliarity[] = ['familiar', 'mixed', 'unfamiliar'];
+
+type EstimationParams = {
+  category: TaskCategory;
+  complexity: TaskComplexity;
+  actorProfile?: ActorProfile;
+  softwareTaskType?: SoftwareTaskType;
+  expectedFiles?: number;
+  expectedLinesChanged?: number;
+  verificationLevel?: VerificationLevel;
+  familiarity?: CodebaseFamiliarity;
+};
+
+const ESTIMATION_DETAIL_PROPERTIES = {
+  actorProfile: { type: 'string', enum: ACTOR_PROFILES },
+  softwareTaskType: { type: 'string', enum: SOFTWARE_TASK_TYPES },
+  expectedFiles: { type: 'number', minimum: 0 },
+  expectedLinesChanged: { type: 'number', minimum: 0 },
+  verificationLevel: { type: 'string', enum: VERIFICATION_LEVELS },
+  familiarity: { type: 'string', enum: CODEBASE_FAMILIARITIES },
+};
+
+function buildSoftwareTaskDetail(params: EstimationParams): SoftwareTaskDetail | undefined {
+  const {
+    actorProfile,
+    softwareTaskType,
+    expectedFiles,
+    expectedLinesChanged,
+    verificationLevel,
+    familiarity,
+  } = params;
+
+  if (
+    actorProfile === undefined &&
+    softwareTaskType === undefined &&
+    expectedFiles === undefined &&
+    expectedLinesChanged === undefined &&
+    verificationLevel === undefined &&
+    familiarity === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    actorProfile,
+    softwareTaskType,
+    expectedFiles,
+    expectedLinesChanged,
+    verificationLevel,
+    familiarity,
+  };
+}
 
 export function registerTemporalTools(ctx: ToolContext): Tool[] {
   const tools: Tool[] = [];
@@ -57,12 +122,17 @@ export function registerTemporalTools(ctx: ToolContext): Tool[] {
       properties: {
         category: { type: 'string', enum: TASK_CATEGORIES },
         complexity: { type: 'string', enum: TASK_COMPLEXITIES },
+        ...ESTIMATION_DETAIL_PROPERTIES,
       },
       required: ['category', 'complexity'],
     },
-    execute: async ({ category, complexity }: { category: TaskCategory; complexity: TaskComplexity }) => {
+    execute: async (params: EstimationParams) => {
       if (!ctx.taskEstimator) return { error: 'Task estimator not available' };
-      const estimate = ctx.taskEstimator.estimate(category, complexity);
+      const estimate = ctx.taskEstimator.estimate(
+        params.category,
+        params.complexity,
+        buildSoftwareTaskDetail(params)
+      );
       if (ctx.temporalTranslator) {
         return { ...estimate, humanReadable: ctx.temporalTranslator.translateDuration(estimate) };
       }
@@ -118,6 +188,7 @@ export function registerTemporalTools(ctx: ToolContext): Tool[] {
         deadline: { type: 'string' },
         category: { type: 'string', enum: TASK_CATEGORIES },
         complexity: { type: 'string', enum: TASK_COMPLEXITIES },
+        ...ESTIMATION_DETAIL_PROPERTIES,
         urgency: { type: 'number', minimum: 0, maximum: 100 },
         importance: { type: 'number', minimum: 0, maximum: 100 },
         tags: { type: 'array', items: { type: 'string' } },
@@ -126,7 +197,11 @@ export function registerTemporalTools(ctx: ToolContext): Tool[] {
     },
     execute: async (params: any) => {
       if (!ctx.priorityScheduler || !ctx.taskEstimator) return { error: 'Scheduler not available' };
-      const estimatedDuration = ctx.taskEstimator.estimate(params.category, params.complexity);
+      const estimatedDuration = ctx.taskEstimator.estimate(
+        params.category,
+        params.complexity,
+        buildSoftwareTaskDetail(params)
+      );
       let deadlineMs: number | undefined;
       if (params.deadline) {
         const relativeMs = parseRelativeTime(params.deadline);

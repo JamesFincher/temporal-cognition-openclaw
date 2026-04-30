@@ -10,10 +10,43 @@ import {
   DurationEstimate,
   TaskHistoryEntry,
   ActiveTask,
+  SoftwareTaskDetail,
+  DurationBaselineMetadata,
 } from '../types';
-import { BASE_DURATION_MS, COMPLEXITY_MULTIPLIERS } from '../constants';
+import {
+  BASE_DURATION_MS,
+  COMPLEXITY_MULTIPLIERS,
+  SOFTWARE_BASE_DURATION_MS,
+  SOFTWARE_BASELINE_CALIBRATION,
+} from '../constants';
 import { calculateConfidence, calculateAccuracy, bayesianUpdate, calculateVariance } from '../utils/confidence';
-import { formatDuration, formatDurationRange } from '../utils/time-math';
+import { formatDuration } from '../utils/time-math';
+
+const VERIFICATION_FACTORS = {
+  none: 0.8,
+  light: 0.9,
+  normal: 1.0,
+  thorough: 1.35,
+} as const;
+
+const FAMILIARITY_FACTORS = {
+  familiar: 0.85,
+  mixed: 1.0,
+  unfamiliar: 1.25,
+} as const;
+
+const COMPLEXITY_LINE_ANCHORS: Record<TaskComplexity, number> = {
+  trivial: 10,
+  simple: 50,
+  moderate: 150,
+  complex: 500,
+  'highly-complex': 1500,
+};
+
+interface BaselineResult {
+  durationMs: number;
+  metadata: DurationBaselineMetadata;
+}
 
 export class TaskTimeEstimator {
   private config: Required<TaskEstimatorConfig>;
@@ -61,32 +94,104 @@ export class TaskTimeEstimator {
   /**
    * Get baseline duration for a category/complexity combination
    */
-  private getBaseline(category: TaskCategory, complexity: TaskComplexity): number {
+  private getBaseline(
+    category: TaskCategory,
+    complexity: TaskComplexity,
+    taskDetail?: SoftwareTaskDetail
+  ): BaselineResult {
     const key = `${category}:${complexity}`;
     const learned = this.learnedBaselines.get(key);
     
     if (learned && learned.confidence > 0.5) {
-      return learned.mean;
+      return {
+        durationMs: learned.mean,
+        metadata: {
+          actorProfile: taskDetail?.actorProfile,
+          baselineSource: 'learned-history',
+          calibrationMethod: 'historical task completions for matching category and complexity',
+          softwareTaskType: taskDetail?.softwareTaskType,
+          adjustmentFactors: {
+            learnedConfidence: learned.confidence,
+          },
+        },
+      };
+    }
+
+    if (category === 'coding' && taskDetail?.softwareTaskType) {
+      return this.getSoftwareBaseline(complexity, {
+        ...taskDetail,
+        softwareTaskType: taskDetail.softwareTaskType,
+      });
     }
     
     // Fall back to default baseline
     const baseMs = BASE_DURATION_MS[category] || BASE_DURATION_MS.other;
     const multiplier = COMPLEXITY_MULTIPLIERS[complexity] || 1.0;
     
-    return baseMs * multiplier;
+    return {
+      durationMs: baseMs * multiplier,
+      metadata: {
+        baselineSource: 'default-category',
+        calibrationMethod: 'legacy category baseline multiplied by task complexity',
+        adjustmentFactors: {
+          complexityMultiplier: multiplier,
+        },
+      },
+    };
+  }
+
+  private getSoftwareBaseline(
+    complexity: TaskComplexity,
+    taskDetail: SoftwareTaskDetail & { softwareTaskType: NonNullable<SoftwareTaskDetail['softwareTaskType']> }
+  ): BaselineResult {
+    const actorProfile = taskDetail.actorProfile ?? 'human';
+    const verificationLevel = taskDetail.verificationLevel ?? 'normal';
+    const familiarity = taskDetail.familiarity ?? 'mixed';
+    const baseMs = SOFTWARE_BASE_DURATION_MS[taskDetail.softwareTaskType][actorProfile][complexity];
+    const expectedFiles = Math.max(0, taskDetail.expectedFiles ?? 0);
+    const expectedLinesChanged = Math.max(0, taskDetail.expectedLinesChanged ?? 0);
+    const fileFactor = expectedFiles > 1
+      ? 1 + Math.min((expectedFiles - 1) * 0.08, 0.6)
+      : 1;
+    const lineAnchor = COMPLEXITY_LINE_ANCHORS[complexity];
+    const lineFactor = expectedLinesChanged > lineAnchor
+      ? 1 + Math.min(((expectedLinesChanged - lineAnchor) / lineAnchor) * 0.15, 0.75)
+      : 1;
+    const verificationFactor = VERIFICATION_FACTORS[verificationLevel];
+    const familiarityFactor = FAMILIARITY_FACTORS[familiarity];
+    const adjustedMs = baseMs * fileFactor * lineFactor * verificationFactor * familiarityFactor;
+
+    return {
+      durationMs: adjustedMs,
+      metadata: {
+        actorProfile,
+        baselineSource: 'calibrated-software',
+        calibrationMethod: SOFTWARE_BASELINE_CALIBRATION.method,
+        softwareTaskType: taskDetail.softwareTaskType,
+        adjustmentFactors: {
+          fileFactor,
+          lineFactor,
+          verificationFactor,
+          familiarityFactor,
+        },
+      },
+    };
   }
   
   /**
    * Estimate duration for a task
    */
-  estimate(category: TaskCategory, complexity: TaskComplexity): DurationEstimate {
-    const key = `${category}:${complexity}`;
+  estimate(
+    category: TaskCategory,
+    complexity: TaskComplexity,
+    taskDetail?: SoftwareTaskDetail
+  ): DurationEstimate {
     const relevantHistory = this.state.taskHistory.filter(
       h => h.category === category && h.complexity === complexity
     );
     
     // Get baseline estimate
-    const baseline = this.getBaseline(category, complexity);
+    const baseline = this.getBaseline(category, complexity, taskDetail);
     
     // Calculate variance from history
     const variance = calculateVariance(relevantHistory);
@@ -104,9 +209,9 @@ export class TaskTimeEstimator {
     
     // Calculate min/max based on variance
     const varianceFactor = 1 + variance;
-    const minimumMs = Math.round(baseline / varianceFactor);
-    const maximumMs = Math.round(baseline * varianceFactor);
-    const expectedMs = Math.round(baseline);
+    const expectedMs = Math.round(baseline.durationMs);
+    const minimumMs = Math.min(expectedMs, Math.round(baseline.durationMs / varianceFactor));
+    const maximumMs = Math.max(expectedMs, Math.round(baseline.durationMs * varianceFactor));
     
     return {
       minimumMs,
@@ -121,6 +226,7 @@ export class TaskTimeEstimator {
         expected: formatDuration(expectedMs, { precise: true }),
         maximum: formatDuration(maximumMs, { precise: true }),
       },
+      baselineMetadata: baseline.metadata,
     };
   }
   

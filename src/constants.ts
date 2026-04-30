@@ -2,7 +2,14 @@
 // TEMPORAL COGNITION MODULE - CONSTANTS AND DEFAULTS
 // ============================================================================
 
-import { CyclePhase, PhaseConfig, TaskCategory, TaskComplexity } from './types';
+import {
+  ActorProfile,
+  CyclePhase,
+  PhaseConfig,
+  SoftwareTaskType,
+  TaskCategory,
+  TaskComplexity,
+} from './types';
 
 // Default Time Scaling Factors by task category
 export const DEFAULT_TSF_BY_CATEGORY: Record<TaskCategory, number> = {
@@ -37,6 +44,138 @@ export const BASE_DURATION_MS: Record<TaskCategory, number> = {
   'file-operations': 30000, // 30 seconds
   'web-browsing': 180000,  // 3 minutes
   'other': 300000,         // 5 minutes
+};
+
+// Evidence-calibrated software-development baselines in milliseconds.
+// Human and AI-assisted values anchor to controlled Copilot task timing
+// (about 2h41m without assistance, 1h11m with assistance) and are rounded
+// into practical planning buckets. AI-agent values include expected
+// comprehension, tool execution, and verification time rather than raw
+// generation speed.
+export const SOFTWARE_BASE_DURATION_MS: Record<
+  SoftwareTaskType,
+  Record<ActorProfile, Record<TaskComplexity, number>>
+> = {
+  implementation: {
+    human: {
+      trivial: 900000,          // 15 minutes
+      simple: 2700000,          // 45 minutes
+      moderate: 9660000,        // 2 hours 41 minutes
+      complex: 21600000,        // 6 hours
+      'highly-complex': 57600000, // 16 hours
+    },
+    'ai-assisted-human': {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 4260000,        // 1 hour 11 minutes
+      complex: 12600000,        // 3 hours 30 minutes
+      'highly-complex': 36000000, // 10 hours
+    },
+    'ai-agent': {
+      trivial: 300000,          // 5 minutes
+      simple: 900000,           // 15 minutes
+      moderate: 2400000,        // 40 minutes
+      complex: 7200000,         // 2 hours
+      'highly-complex': 21600000, // 6 hours
+    },
+  },
+  testing: {
+    human: {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 5400000,        // 1 hour 30 minutes
+      complex: 14400000,        // 4 hours
+      'highly-complex': 36000000, // 10 hours
+    },
+    'ai-assisted-human': {
+      trivial: 480000,          // 8 minutes
+      simple: 1200000,          // 20 minutes
+      moderate: 3600000,        // 1 hour
+      complex: 9000000,         // 2 hours 30 minutes
+      'highly-complex': 25200000, // 7 hours
+    },
+    'ai-agent': {
+      trivial: 300000,          // 5 minutes
+      simple: 900000,           // 15 minutes
+      moderate: 2700000,        // 45 minutes
+      complex: 7200000,         // 2 hours
+      'highly-complex': 21600000, // 6 hours
+    },
+  },
+  debugging: {
+    human: {
+      trivial: 900000,          // 15 minutes
+      simple: 2700000,          // 45 minutes
+      moderate: 7200000,        // 2 hours
+      complex: 21600000,        // 6 hours
+      'highly-complex': 57600000, // 16 hours
+    },
+    'ai-assisted-human': {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 5400000,        // 1 hour 30 minutes
+      complex: 14400000,        // 4 hours
+      'highly-complex': 39600000, // 11 hours
+    },
+    'ai-agent': {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 5400000,        // 1 hour 30 minutes
+      complex: 14400000,        // 4 hours
+      'highly-complex': 43200000, // 12 hours
+    },
+  },
+  documentation: {
+    human: {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 3600000,        // 1 hour
+      complex: 10800000,        // 3 hours
+      'highly-complex': 28800000, // 8 hours
+    },
+    'ai-assisted-human': {
+      trivial: 300000,          // 5 minutes
+      simple: 900000,           // 15 minutes
+      moderate: 2400000,        // 40 minutes
+      complex: 7200000,         // 2 hours
+      'highly-complex': 18000000, // 5 hours
+    },
+    'ai-agent': {
+      trivial: 180000,          // 3 minutes
+      simple: 600000,           // 10 minutes
+      moderate: 1800000,        // 30 minutes
+      complex: 5400000,         // 1 hour 30 minutes
+      'highly-complex': 14400000, // 4 hours
+    },
+  },
+  review: {
+    human: {
+      trivial: 600000,          // 10 minutes
+      simple: 1800000,          // 30 minutes
+      moderate: 5400000,        // 1 hour 30 minutes
+      complex: 14400000,        // 4 hours
+      'highly-complex': 36000000, // 10 hours
+    },
+    'ai-assisted-human': {
+      trivial: 480000,          // 8 minutes
+      simple: 1500000,          // 25 minutes
+      moderate: 4200000,        // 1 hour 10 minutes
+      complex: 10800000,        // 3 hours
+      'highly-complex': 28800000, // 8 hours
+    },
+    'ai-agent': {
+      trivial: 420000,          // 7 minutes
+      simple: 1200000,          // 20 minutes
+      moderate: 3600000,        // 1 hour
+      complex: 9000000,         // 2 hours 30 minutes
+      'highly-complex': 25200000, // 7 hours
+    },
+  },
+};
+
+export const SOFTWARE_BASELINE_CALIBRATION = {
+  source: 'GitHub Copilot controlled task timing plus DORA verification-overhead guidance',
+  method: 'rounded planning buckets by task type, actor profile, and complexity',
 };
 
 // Default cycle phase configurations

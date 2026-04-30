@@ -1,0 +1,111 @@
+{
+  "project": "temporal-cognition-openclaw",
+  "branchName": "ralph/evidence-based-time-estimation",
+  "prdFile": "prd.md",
+  "description": "Improve task estimates with evidence-based developer baselines, actor-aware AI-vs-human timing, and transparent calibration metadata.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add estimation domain types and calibrated constants",
+      "description": "As an OpenClaw tool maintainer, I want typed task-detail and actor-profile inputs so that estimates can represent human, AI-assisted, and AI-agent software work explicitly.",
+      "acceptanceCriteria": [
+        "Add exported actor-profile and software-task-detail types in src/types.ts without changing existing TaskCategory or TaskComplexity literal values",
+        "Extend DurationEstimate with optional baseline metadata including actor profile, baseline source, calibration method, and adjustment factors",
+        "Add calibrated software-development baseline constants in src/constants.ts while preserving BASE_DURATION_MS for backward compatibility",
+        "Baseline constants include at least human, ai-assisted-human, and ai-agent profiles for coding, testing, debugging, documentation, and review-like work",
+        "Type-check passes",
+        "Tests pass"
+      ],
+      "technicalNotes": "Modify src/types.ts:31 for estimation types and src/constants.ts:20/src/constants.ts:29 for centralized constants. Follow the existing Record<TaskComplexity, number> pattern from COMPLEXITY_MULTIPLIERS and do not remove BASE_DURATION_MS because TaskTimeEstimator.getBaseline currently depends on it at src/engines/task-estimator.ts:72.",
+      "dependsOn": [],
+      "priority": 1,
+      "passes": true,
+      "notes": "Implemented in iteration 1. Files: src/types.ts, src/constants.ts, tests/constants.test.ts."
+    },
+    {
+      "id": "US-002",
+      "title": "Apply actor-aware baseline calculation in the estimator",
+      "description": "As a developer asking for an estimate, I want the estimator to account for whether a human or AI agent is doing the work so that generated timings match the actual workflow.",
+      "acceptanceCriteria": [
+        "TaskTimeEstimator.estimate accepts an optional task-detail object while existing two-argument calls still compile and behave compatibly",
+        "For coding tasks with no learned baseline, expectedMs is derived from calibrated software baselines when task details identify a software task",
+        "AI-agent estimates include verification overhead rather than applying a pure line-generation speedup",
+        "Learned baselines with confidence greater than the existing 0.5 threshold continue to override default baselines",
+        "minimumMs is never greater than expectedMs and maximumMs is never less than expectedMs",
+        "Type-check passes",
+        "Tests pass"
+      ],
+      "technicalNotes": "Modify src/engines/task-estimator.ts:64 and src/engines/task-estimator.ts:82. Keep initializeBaselines and completeTask behavior intact at src/engines/task-estimator.ts:39 and src/engines/task-estimator.ts:151. Use calculateVariance from src/utils/confidence.ts:98 for range construction unless a task-detail-specific variance override is introduced.",
+      "dependsOn": [
+        "US-001"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Implemented in iteration 2. Files: src/engines/task-estimator.ts."
+    },
+    {
+      "id": "US-003",
+      "title": "Expose task-detail inputs through temporal tools",
+      "description": "As an agent using temporal tools, I want to pass actor profile and task details to temporal_estimate and scheduling so that planning calls use the richer estimator.",
+      "acceptanceCriteria": [
+        "temporal_estimate schema includes optional actorProfile, softwareTaskType, expectedFiles, expectedLinesChanged, verificationLevel, and familiarity fields",
+        "temporal_estimate passes the optional task detail object into TaskTimeEstimator.estimate",
+        "temporal_schedule_task accepts the same optional estimation fields and uses them when computing estimatedDuration",
+        "Existing calls with only category and complexity still return a valid DurationEstimate",
+        "Unsupported enum values are rejected by the tool parameter schema",
+        "Type-check passes",
+        "Tests pass"
+      ],
+      "technicalNotes": "Modify src/tools/temporal-tools.ts:34 to add enums beside TASK_CATEGORIES/TASK_COMPLEXITIES, src/tools/temporal-tools.ts:51 for temporal_estimate parameters, and src/tools/temporal-tools.ts:109 for temporal_schedule_task parameters. Preserve current error shape such as { error: 'Task estimator not available' } at src/tools/temporal-tools.ts:64.",
+      "dependsOn": [
+        "US-002"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Implemented in iteration 3. Files: src/tools/temporal-tools.ts."
+    },
+    {
+      "id": "US-004",
+      "title": "Add focused estimator tests and package scripts",
+      "description": "As a maintainer, I want repeatable tests for the new estimation math so that future changes do not regress timing accuracy or compatibility.",
+      "acceptanceCriteria": [
+        "Add a test runner script to package.json so bun run test executes the new test suite",
+        "Add a type-check script to package.json that runs the existing TypeScript compiler",
+        "Tests cover default compatibility for category-plus-complexity estimates",
+        "Tests cover actor ordering for the same software task: ai-agent expectedMs is less than human expectedMs for simple implementation with normal verification",
+        "Tests cover verification overhead increasing ai-agent expectedMs when verificationLevel increases",
+        "Tests cover learned baseline override when history confidence is above threshold",
+        "Type-check passes",
+        "Tests pass"
+      ],
+      "technicalNotes": "package.json:12 currently has only build/prepublishOnly/postinstall scripts, so add minimal scripts without disrupting npm build. There are no existing test files found under the repository root, so create a small focused suite near the estimator or under a conventional tests directory. Directly instantiate TaskTimeEstimator with TemporalCognitionState matching src/types.ts:189.",
+      "dependsOn": [
+        "US-003"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Implemented in iteration 4. Files: package.json, tests/task-estimator.test.ts."
+    },
+    {
+      "id": "US-005",
+      "title": "Document evidence-based estimation behavior",
+      "description": "As a user of the temporal cognition plugin, I want docs explaining the new estimate fields and baseline caveats so that I know how to interpret AI-vs-human timings.",
+      "acceptanceCriteria": [
+        "README Available Tools table keeps temporal_estimate and temporal_schedule_task descriptions accurate",
+        "README Task Estimator configuration section documents any new config options or states that no new config is required",
+        "README usage examples include an actor-aware coding estimate example",
+        "Documentation explains that AI-agent estimates include verification overhead and are not raw code-generation speed",
+        "Documentation references the package's learning behavior where actual completions can override defaults over time",
+        "Type-check passes",
+        "Tests pass"
+      ],
+      "technicalNotes": "Update README.md:85 for tool descriptions, README.md:129 for Task Estimator config, and README.md:216 for How It Works. Mirror the existing concise table and example style rather than adding a separate long research appendix.",
+      "dependsOn": [
+        "US-004"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Implemented in iteration 5. Files: README.md."
+    }
+  ]
+}
