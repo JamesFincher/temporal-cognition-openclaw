@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test tests/*.test.ts",
     "lint": "tsc --noEmit",
     "format:check": "tsc --noEmit",
     "format": "tsc --noEmit",
