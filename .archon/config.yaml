@@ -1,0 +1,7 @@
+assistant: codex
+
+assistants:
+  codex:
+    modelReasoningEffort: medium
+    webSearchMode: live
+
