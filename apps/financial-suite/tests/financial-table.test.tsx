@@ -23,7 +23,9 @@ vi.mock("@/convex/_generated/api", () => ({
 
 vi.mock("convex/react", () => ({
   useMutation: vi.fn((mutationName: string) =>
-    mutationName === "upsertFinancialItem" ? mocks.upsertItem : mocks.deleteItem,
+    mutationName === "upsertFinancialItem"
+      ? mocks.upsertItem
+      : mocks.deleteItem,
   ),
 }));
 
@@ -98,7 +100,9 @@ describe("FinancialTable", () => {
   });
 
   it("shows an error when an autosave fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     mocks.upsertItem.mockRejectedValue(new Error("offline"));
     render(
       <FinancialTable
